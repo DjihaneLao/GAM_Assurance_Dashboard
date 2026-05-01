@@ -14,7 +14,13 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+# logo
+import base64
 
+def get_base64_image(path):
+    with open(path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+logo_base64 = get_base64_image("data/gam.png")
 # ─────────────────────────────────────────────
 # CUSTOM CSS — Dropify-inspired clean UI
 # ─────────────────────────────────────────────
@@ -87,6 +93,12 @@ html, body, [class*="css"], .main {
 }
 
 /* ── LOGO AREA ── */
+            .sidebar-logo-img {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+    border-radius: 10px;
+}
 .sidebar-logo {
     display: flex;
     align-items: center;
@@ -543,14 +555,13 @@ PLOTLY_LAYOUT = dict(
 # ─────────────────────────────────────────────
 
 with st.sidebar:
-    st.markdown("""
+    st.markdown(f"""
     <div class="sidebar-logo">
-      <div class="sidebar-logo-icon">
-  <img src="data/gam.png" style="width:42px;height:42px;object-fit:contain;">
-</div>
-        <div class="sidebar-logo-text">GAM Assurance</div>
-        <div class="sidebar-logo-sub">Location Intelligence</div>
-      </div>
+        <img src="data:image/png;base64,{logo_base64}" class="sidebar-logo-img">
+        <div>
+            <div class="sidebar-logo-text">GAM Assurance</div>
+            <div class="sidebar-logo-sub">Location Intelligence</div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -558,33 +569,22 @@ with st.sidebar:
     wilayas_list = sorted(df_base["wilaya"].unique().tolist())
     sel_wilaya   = st.multiselect("Wilaya", wilayas_list, default=wilayas_list)
 
-    regions_available = sorted(df_base[df_base["wilaya"].isin(sel_wilaya)]["region"].dropna().unique().tolist())
-    sel_region = st.multiselect("Region (optional)", regions_available, default=[])
-
-    pop_min, pop_max = int(df_base["population"].min()), int(df_base["population"].max())
-    sel_pop = st.slider("Population range", pop_min, pop_max, (pop_min, pop_max),
-                        step=10000, format="%d")
-
-    score_thresh = st.slider("Min score threshold", 0, 100, 0)
-
-    comp_max_val = int(df_base["competition"].max())
-    comp_max = st.slider("Max competitor count", 0, comp_max_val, comp_max_val)
-
-    st.markdown("<hr class='sidebar-divider'>", unsafe_allow_html=True)
-    st.markdown("<div class='sidebar-section-title'>⚖️ Scoring Weights</div>", unsafe_allow_html=True)
-    w_demo = st.slider("D — Demand",        0.0, 1.0, 0.30, 0.05)
-    w_eco  = st.slider("Eco / Income",      0.0, 1.0, 0.25, 0.05)
-    w_ind  = st.slider("G — GAM Coverage",  0.0, 1.0, 0.20, 0.05)
-    w_comp = st.slider("C — Competition",   0.0, 1.0, 0.25, 0.05)
-
-    st.markdown("<hr class='sidebar-divider'>", unsafe_allow_html=True)
-    st.markdown("<div class='sidebar-section-title'>📐 Rule Parameters</div>", unsafe_allow_html=True)
-    rule_pop = st.number_input("1 agency per N inhabitants", min_value=5000,
-                               max_value=50000, value=15000, step=1000)
+   
 
 # ─────────────────────────────────────────────
 # COMPUTE FILTERED DATA
 # ─────────────────────────────────────────────
+w_demo = 0.30
+w_eco  = 0.25
+w_ind  = 0.20
+w_comp = 0.25
+rule_pop = 15000
+
+sel_wilaya = df_base["wilaya"].unique().tolist()
+sel_region = []
+sel_pop = (df_base["population"].min(), df_base["population"].max())
+score_thresh = 0
+comp_max = int(df_base["competition"].max())
 df = compute_scores(df_base.copy(), w_demo, w_eco, w_ind, w_comp, rule_pop)
 
 mask = (
@@ -607,10 +607,10 @@ st.markdown("""
     <h1>Insurance Agency Optimizer</h1>
     <div class="subtitle">Spatial scoring &amp; gap analysis · Algeria Insurance Market</div>
     <div class="badge-row">
-      <span class="badge">🌍 AI / GIS</span>
-      <span class="badge">📊 Spatial Analysis</span>
-      <span class="badge">🎯 Multi-Criteria Scoring</span>
-      <span class="badge">📍 Coverage Optimization</span>
+      <span class="badge"> GIS</span>
+      <span class="badge"> Spatial Analysis</span>
+      <span class="badge"> Multi-Criteria Scoring</span>
+      <span class="badge"> Coverage Optimization</span>
     </div>
   </div>
 </div>
@@ -627,16 +627,16 @@ n_opport  = (df_f["gap"] > 0).sum()
 k1, k2, k3, k4, k5 = st.columns(5)
 
 for col, icon, label, value, sub, cls in [
-    (k1, "🗺️",  "Wilayas",         len(df_f),             "after filters",       "blue"),
-    (k2, "⭐",  "Avg. Score",       f"{avg_score:.1f}",    "out of 100",          "amber"),
-    (k3, "📉",  "GAM Gap",          int(total_gap),         "agencies needed",     "red"),
-    (k4, "🎯",  "Opportunities",    int(n_opport),          "gap > 0 wilayas",     "green"),
-    (k5, "📊",  "GAM Coverage",     f"{avg_cov*100:.0f}%",  "existing / required", "lime"),
+    (k1, "",  "Wilayas",         len(df_f),             "after filters",       "blue"),
+    (k2, "",  "Avg. Score",       f"{avg_score:.1f}",    "out of 100",          "amber"),
+    (k3, "",  "GAM Gap",          int(total_gap),         "agencies needed",     "red"),
+    (k4, "",  "Opportunities",    int(n_opport),          "gap > 0 wilayas",     "green"),
+    (k5, "",  "GAM Coverage",     f"{avg_cov*100:.0f}%",  "existing / required", "lime"),
 ]:
     with col:
         st.markdown(f"""
         <div class="kpi-card {cls}">
-          <div class="kpi-card-icon">{icon}</div>
+        
           <div class="kpi-label">{label}</div>
           <div class="kpi-value">{value}</div>
           <div class="kpi-sub">{sub}</div>
@@ -648,11 +648,11 @@ st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 # TABS
 # ─────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "🗺️  Geographic Analysis",
-    "📊  Scoring & Ranking",
-    "📉  Gap & Coverage",
-    "🔍  Wilaya Detail",
-    "🔄  Scenario Simulation",
+    "Geographic Analysis",
+    "Scoring & Ranking",
+    "Gap & Coverage",
+    "Wilaya Detail",
+    "Scenario Simulation",
 ])
 
 # ══════════════════════════════════════════════
@@ -1193,7 +1193,7 @@ st.markdown("""
             text-align:center;font-size:0.72rem;color:#9CA3AF;
             font-family:'Plus Jakarta Sans',sans-serif;font-weight:500;
             letter-spacing:0.04em">
-  🛡️ GAM Assurance &nbsp;·&nbsp; Insurance Agency Location Optimizer
-  &nbsp;·&nbsp; Algeria &nbsp;·&nbsp; AI / GIS Decision Support System
+  GAM Assurance &nbsp;·&nbsp; Insurance Agency Location Optimizer
+  &nbsp;·&nbsp; Algeria &nbsp;·&nbsp; Decision Support System
 </div>
 """, unsafe_allow_html=True)
