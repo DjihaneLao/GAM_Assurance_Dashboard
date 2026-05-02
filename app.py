@@ -9,7 +9,7 @@ import base64, os
 # PAGE CONFIG
 # ─────────────────────────────────────────────
 st.set_page_config(
-    page_title="GAM Assurance",
+    page_title="GAM Assurance - Network Optimization Dashboard",
     page_icon="data/gam.png",
     layout="wide",
     initial_sidebar_state="expanded",
