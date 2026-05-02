@@ -10,7 +10,7 @@ import base64, os
 # ─────────────────────────────────────────────
 st.set_page_config(
     page_title="GAM Assurance",
-    page_icon="🛡️",
+    page_icon="data/gam.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )# logo
@@ -205,6 +205,7 @@ WILAYA_COORDS = {
 def load_data(path="data/Scoring_with_region_ranksData.csv"):
     df = pd.read_csv(path)
     df["Wilaya"] = df["Wilaya"].str.strip().str.upper()
+    
     df = df.rename(columns={
         "Wilaya":               "wilaya",
         "Population":           "population",
@@ -334,13 +335,13 @@ df_f = df_base[mask].copy()
 st.markdown("""
 <div class="page-header">
   <div class="page-header-left">
-    <h1>Optimisation des Agences d'Assurance</h1>
-    <div class="subtitle">Scoring spatial & analyse des écarts · Marché Algérien</div>
+    <h1>Decision Support System for Insurance Network Optimization in Algeria</h1>
+    <div class="subtitle">Spatial intelligence platform designed to support strategic expansion and optimization of insurance agency networks across Algeria. The system integrates demographic, economic, and competitive indicators to identify high-potential locations, assess coverage gaps, and guide data-driven branch deployment decisions for GAM Assurance.</div>
     <div class="badge-row">
       <span class="badge">GIS</span>
       <span class="badge">Spatial Analysis</span>
       <span class="badge">Multi-Criteria Scoring</span>
-      <span class="badge">Coverage Optimization</span>
+      <span class="badge">Insurance Network Optimization</span>
     </div>
   </div>
 </div>
@@ -390,20 +391,12 @@ with tab1:
     with col_ctrl:
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.markdown("<div class='card-title'>Map Options</div>", unsafe_allow_html=True)
-        map_layer = st.radio("Overlay", ["Score", "Gap", "Coverage", "Risk"], index=0)
+        map_layer = st.radio("Overlay", ["Score", "Coverage", "Risk"], index=0)
         show_gam  = st.checkbox("Show GAM agencies", value=True)
+        
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # Region summary mini-table
-        st.markdown("<div class='card-title'>Region Rankings</div>", unsafe_allow_html=True)
-        for _, row in region_summary.iterrows():
-            rank_color = ["#085424","#3B82F6","#F59E0B","#F05252"][int(row["Region_Rank"])-1]
-            st.markdown(f"""
-            <div class="mini-kpi" style="border-left:3px solid {rank_color}">
-              <div class="mini-kpi-label">#{int(row['Region_Rank'])} {row['Region']}</div>
-              <div class="mini-kpi-value" style="font-size:0.95rem">{row['Wilaya']}</div>
-              <div class="mini-kpi-sub">Score: {row['Final_Priority_Score']*100:.1f}</div>
-            </div>""", unsafe_allow_html=True)
+        
 
     with col_map:
         st.markdown("<div class='card-title'>Attractiveness Map — Wilayas scored by opportunity index</div>", unsafe_allow_html=True)
@@ -412,7 +405,7 @@ with tab1:
         else:
             layer_cfg = {
                 "Score":    ("score",    [[0,"#56d364"],[0.5,"#F59E0B"],[1,"#F05252"]], [0,100],   "Score"),
-                "Gap":      ("gap",      [[0,"#56d364"],[0.5,"#F59E0B"],[1,"#F05252"]], None,       "Gap"),
+                
                 "Coverage": ("coverage", [[0,"#F05252"],[0.5,"#F59E0B"],[1,"#085424"]], [0,2],      "Coverage"),
                 "Risk":     ("risk",     [[0,"#EFF6FF"],[0.5,"#3B82F6"],[1,"#1e3a8a"]], [0,1],      "Risk (R)"),
             }
@@ -424,6 +417,7 @@ with tab1:
             df_f["symbol"] = df_f["attractivite"].map(sym_map).fillna("circle")
 
             fig_map = px.scatter_mapbox(
+                
                 df_f, lat="lat", lon="lon",
                 color=col_field, size="population", size_max=28,
                 hover_name="wilaya",
@@ -441,6 +435,7 @@ with tab1:
                 labels={col_field: clabel},
                 opacity=0.85,
             )
+            
 
             if show_gam:
                 gam_df = df_f[df_f["existing_agencies"] > 0]
@@ -507,62 +502,7 @@ with tab2:
             fig_bar.update_traces(marker_line_width=0)
             st.plotly_chart(fig_bar, use_container_width=True)
 
-        st.markdown("<div class='card-title'>Score Factor Breakdown — Selected Wilaya</div>", unsafe_allow_html=True)
-        sel_zone = st.selectbox("Select wilaya", df_f.sort_values("rank")["wilaya"].tolist(), key="rank_zone")
-        zrow = df_f[df_f["wilaya"] == sel_zone].iloc[0]
-
-        factors = {
-            "D — Demand":        zrow["demand"]       * 0.40 * 100,
-            "G — GAM Coverage":  zrow["gam_coverage"] * 0.20 * 100,
-            "C — 1-Competition": zrow["comp_inv"]     * 0.20 * 100,
-            "R — Risk":          zrow["risk"]          * 0.20 * 100,
-        }
-        colors = ["#3B82F6", "#085424", "#F05252", "#F59E0B"]
-
-        c1, c2, c3 = st.columns([1, 2, 1])
-        with c1:
-            for (k, v), color in zip(factors.items(), colors):
-                pct = min(v / (zrow["score"] + 0.001) * 100, 100)
-                st.markdown(f"""
-                <div class="prog-wrap">
-                  <div class="prog-label"><span>{k}</span><span style="color:{color};font-weight:700">{v:.1f}pts</span></div>
-                  <div class="prog-bar-bg"><div class="prog-bar-fill" style="width:{pct}%;background:{color}"></div></div>
-                </div>""", unsafe_allow_html=True)
-
-        with c2:
-            fig_radar = go.Figure(go.Scatterpolar(
-                r=list(factors.values()),
-                theta=list(factors.keys()),
-                fill="toself",
-                fillcolor="rgba(8,84,36,0.1)",
-                line=dict(color="#085424", width=2),
-                marker=dict(color="#085424", size=6),
-            ))
-            fig_radar.update_layout(
-                polar=dict(
-                    radialaxis=dict(visible=True, range=[0, 45], gridcolor="#E8ECF0", linecolor="#E8ECF0", tickfont=dict(color="#6B7280")),
-                    angularaxis=dict(gridcolor="#E8ECF0", linecolor="#E8ECF0", tickfont=dict(color="#343C6A")),
-                    bgcolor="rgba(0,0,0,0)",
-                ),
-                paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=40, r=40, t=20, b=20),
-                height=260, showlegend=False,
-            )
-            st.plotly_chart(fig_radar, use_container_width=True)
-
-        with c3:
-            attract_color = {"Plus Attractive": "green", "Moyennement Attractive": "amber", "Moins Attractive": "red"}.get(zrow["attractivite"], "blue")
-            for lbl, val, border in [
-                ("Overall Score",    f"{zrow['score']:.1f}",              "--red"),
-                ("Attractivité",     zrow["attractivite"].replace(" ","<br>"), f"--{attract_color}"),
-                ("Population",       f"{zrow['population']:,}",            "--blue"),
-                ("GAM Agencies",     str(int(zrow["existing_agencies"])),  "--green"),
-            ]:
-                st.markdown(f"""
-                <div class="mini-kpi" style="border-left:3px solid var({border})">
-                  <div class="mini-kpi-label">{lbl}</div>
-                  <div class="mini-kpi-value" style="font-size:1rem">{val}</div>
-                </div>""", unsafe_allow_html=True)
-
+        
 
 # ══════════════════════════════════════════════
 # TAB 4 — WILAYA DETAIL
@@ -661,43 +601,10 @@ with tab3:
                 <div class="mini-kpi-label">Region</div>
                 <div class="mini-kpi-value" style="font-size:1rem">{zd['region']} · Rank #{reg_rank}</div>
               </div>
-              <div class="mini-kpi" style="border-left:3px solid var(--amber)">
-                <div class="mini-kpi-label">vs National avg</div>
-                <div class="mini-kpi-value" style="color:{d_color}">{d_sign}{delta:.1f}</div>
-                <div class="mini-kpi-sub">Avg: {nat_avg:.1f}</div>
-              </div>
+              
             </div>""", unsafe_allow_html=True)
 
-        # Strategic insight
-        st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
-        gap_v  = zd["gap"]
-        c_v    = zd["comp_inv"]
-        d_v    = zd["demand"]
-        r_v    = zd["risk"]
-        att    = zd["attractivite"]
-
-        if att == "Plus Attractive" and gap_v > 0:
-            insight = f"<b>Prime expansion zone.</b> Ranked as <i>Plus Attractive</i> with a GAM gap of {int(gap_v)} agencies. High demand (D={d_v:.3f}) and low competition (C={c_v:.3f}) — top priority for immediate branch opening."
-            insight_border = "#085424"
-        elif att == "Moyennement Attractive" and gap_v > 0:
-            insight = f"<b>Solid opportunity.</b> Classified <i>Moyennement Attractive</i>. Gap of {int(gap_v)} with manageable competition (C={c_v:.3f}) and risk index R={r_v:.3f}. Fits a medium-term expansion plan."
-            insight_border = "#F59E0B"
-        elif att == "Moins Attractive" and gap_v > 0:
-            insight = f"<b>Mixed signals.</b> Despite a gap of {int(gap_v)} agencies, this wilaya is <i>Moins Attractive</i> due to weak demand (D={d_v:.3f}). A niche or digital-first strategy may outperform a traditional branch here."
-            insight_border = "#F59E0B"
-        elif gap_v <= 0:
-            insight = f"<b>Covered market.</b> With {int(zd['existing_agencies'])} existing GAM agencies the wilaya meets the required threshold. Monitor population growth to trigger future reassessment."
-            insight_border = "#3B82F6"
-        else:
-            insight = f"<b>Saturated & competitive.</b> High competition (C={c_v:.3f}) limits expansion viability. Focus on retention and product differentiation."
-            insight_border = "#F05252"
-
-        st.markdown(f"""
-        <div class="insight-box" style="border-left-color:{insight_border}">
-          <div class="insight-title">Strategic Insight — {sel_zone_detail}</div>
-          {insight}
-        </div>""", unsafe_allow_html=True)
-
+        
 # ══════════════════════════════════════════════
 # TAB 5 — SCENARIO SIMULATION
 # ══════════════════════════════════════════════
